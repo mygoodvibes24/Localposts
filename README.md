@@ -24,3 +24,7 @@ A demo account is seeded on first run: **demo / demo1234**.
 - Data lives in `data/db.json` and photos in `uploads/`. Move to a real database and object storage.
 - Set `SESSION_SECRET` and serve over HTTPS.
 - Needs moderation tools, reporting, rate limiting, and real age verification.
+
+## Phone preview
+
+`preview.html` is a single-file version of the same screens that runs entirely in the browser (accounts and posts are saved on that device only). Open it directly to click through the design without running the server.

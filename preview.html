@@ -1,0 +1,307 @@
+<title>LocalPosts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: classic listing board — dark top bar, full-width gray rows split by white bars, photo left / text right */
+:root {
+  --bg: #f2f2f2; --row: #ebebeb; --row-hover: #e2e2ee; --divider: #ffffff; --surface: #ffffff;
+  --fg: #2b2b2b; --muted: #666; --title: #1a1acc; --accent: #d32f2f; --accent-fg: #fff;
+  --bar: #222; --bar-fg: #fff; --bar-muted: #bbb; --line: #ccc; --err-bg: #fdecea; --err-fg: #b71c1c;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141418; --row: #1d1d23; --row-hover: #25253a; --divider: #0b0b0e; --surface: #1d1d23;
+  --fg: #e6e6ea; --muted: #9a9aa6; --title: #8fa4ff; --accent: #e5484d; --accent-fg: #fff;
+  --bar: #000; --bar-fg: #fff; --bar-muted: #999; --line: #3a3a44; --err-bg: #3b1416; --err-fg: #ffb4b0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141418; --row: #1d1d23; --row-hover: #25253a; --divider: #0b0b0e; --surface: #1d1d23;
+  --fg: #e6e6ea; --muted: #9a9aa6; --title: #8fa4ff; --accent: #e5484d; --accent-fg: #fff;
+  --bar: #000; --bar-fg: #fff; --bar-muted: #999; --line: #3a3a44; --err-bg: #3b1416; --err-fg: #ffb4b0; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bar); }
+a { color: var(--title); }
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--title); outline-offset: 2px; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  padding-block: 10px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+  background: var(--bar); color: var(--bar-fg);
+}
+.logo { color: var(--bar-fg); font-weight: 800; font-size: 20px; text-decoration: none; letter-spacing: -0.01em; }
+.topbar nav { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.topbar nav a:not(.btn), .linkbtn { color: var(--bar-fg); }
+.who { color: var(--bar-muted); }
+.linkbtn { background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 0; }
+
+.btn { display: inline-block; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.btn-post { background: var(--accent); color: var(--accent-fg); }
+.btn-plain { background: var(--line); color: var(--fg); }
+.wide { width: 100%; padding: 12px; font-size: 16px; }
+
+main { max-width: 900px; margin: 0 auto; }
+.preview-note { font-size: 12px; color: var(--muted); text-align: center; padding: 8px 16px 0; }
+
+.search { display: flex; gap: 6px; padding: 10px 8px; }
+.search input { flex: 1; min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 16px; background: var(--surface); color: var(--fg); }
+.search button { padding: 0 14px; border: 0; border-radius: 6px; background: #444; color: #fff; font-weight: 600; cursor: pointer; }
+
+.feed { display: flex; flex-direction: column; }
+.row { display: flex; gap: 16px; padding: 10px 8px 8px; background: var(--row); border-bottom: 6px solid var(--divider); text-decoration: none; color: inherit; }
+.row:hover { background: var(--row-hover); }
+.thumbcol { flex: 0 0 auto; width: 32%; max-width: 230px; }
+.thumb { position: relative; aspect-ratio: 1 / 1; max-width: 100%; background: var(--line); overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.badge { position: absolute; top: 6px; left: 6px; background: var(--accent); color: var(--accent-fg); font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+.posted { color: var(--muted); font-size: 14px; text-align: center; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.info { flex: 1; min-width: 0; }
+.title { color: var(--title); font-size: clamp(16px, 4.4vw, 24px); line-height: 1.25; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.loc { font-size: 13px; margin-top: 6px; }
+.snippet { font-size: clamp(14px, 3.6vw, 18px); color: var(--muted); margin-top: 2px; line-height: 1.35; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+
+.detail { background: var(--surface); padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.detail h1 { color: var(--title); font-weight: 500; font-size: 24px; margin: 10px 0 4px; text-wrap: balance; overflow-wrap: anywhere; }
+.meta { color: var(--muted); font-size: 14px; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 14px 0; }
+.gallery img { width: 100%; border-radius: 4px; display: block; }
+.body { font-size: 17px; line-height: 1.5; max-width: 65ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.formwrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px; }
+.card { background: var(--surface); max-width: 440px; margin: 0 auto; padding: 20px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 12px; }
+.card h1 { margin: 0; font-size: 22px; }
+.sub { margin: -6px 0 0; color: var(--muted); }
+.card label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; }
+.card input:not([type=checkbox]), .card textarea { padding: 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 16px; font-weight: 400; background: var(--bg); color: var(--fg); }
+.card label.check { flex-direction: row; align-items: flex-start; gap: 8px; font-weight: 400; }
+.error { background: var(--err-bg); color: var(--err-fg); padding: 10px; border-radius: 6px; font-size: 14px; }
+.rules { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+.alt { text-align: center; font-size: 14px; margin: 0; }
+.previews { display: flex; gap: 6px; flex-wrap: wrap; }
+.previews img { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; }
+.foot { text-align: center; font-size: 12px; color: var(--muted); padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+</style>
+
+<header class="topbar">
+  <a class="logo" href="#">LocalPosts</a>
+  <nav id="nav"></nav>
+</header>
+<main id="app"></main>
+<footer class="foot">Prototype · 18+ only · No solicitation or paid services. Posts that break the rules are removed.</footer>
+
+<script>
+const KEY = 'localposts-v1';
+const svg = (a, b, e) => 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="300" height="300" fill="url(#g)"/><text x="150" y="185" font-size="110" text-anchor="middle">${e}</text></svg>`);
+
+function seed() {
+  const min = 60000, now = Date.now();
+  const rows = [
+    ['Looking for a hiking buddy this weekend 🥾', 'Starved Rock, Ottawa', 'Planning to hit the trails Saturday morning. Easy pace, good conversation, coffee after. Message me if you want to come along!', 3, svg('#e66465', '#9198e5', '🥾')],
+    ['New to the city — who wants to grab coffee? ☕', 'Wicker Park', "Just moved here for work and don't know anyone yet. Love live music, thrift stores and trying new restaurants.", 9, svg('#f6d365', '#fda085', '☕')],
+    ['Board game night every Thursday 🎲', 'Logan Square', 'Small friendly group, all skill levels. Catan, Codenames, Wingspan. Bring a snack!', 17, svg('#84fab0', '#8fd3f4', '🎲')],
+    ['Dog park meetup 🐶', 'Lincoln Park', 'My golden retriever needs friends and so do I. Sundays around 10am at the north end.', 26, svg('#a18cd1', '#fbc2eb', '🐶')],
+    ['Seeking a tennis partner 🎾', 'Schaumburg', 'Intermediate player, looking for someone to hit with on weekday evenings.', 41, svg('#fccb90', '#d57eeb', '🎾')],
+    ['Photography walk downtown 📷', 'The Loop', 'Golden hour photo walk along the riverwalk. Any camera welcome, even phones.', 58, svg('#43e97b', '#38f9d7', '📷')],
+    ['Salsa class partner wanted 💃', 'Pilsen', 'Signed up for beginner salsa on Wednesdays and need a partner. No experience needed!', 75, svg('#fa709a', '#fee140', '💃')],
+  ];
+  return {
+    users: [{ id: 'u-demo', username: 'demo', pw: null, demoPw: 'demo1234' }],
+    posts: rows.map(([title, location, body, ago, img], i) => ({ id: 'seed' + i, userId: 'u-demo', title, location, body, photos: [img], createdAt: now - ago * min })),
+    sessionUser: null,
+  };
+}
+
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { state = seed(); }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+  catch { return false; }
+}
+
+async function hash(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('localposts:' + pw));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const timeLabel = (ts) => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+const me = () => state.users.find((u) => u.id === state.sessionUser) || null;
+const app = document.getElementById('app');
+let query = '';
+
+function renderNav() {
+  const u = me();
+  document.getElementById('nav').innerHTML = u
+    ? `<a class="btn btn-post" href="#new">+ Post</a><span class="who">@${esc(u.username)}</span><button class="linkbtn" id="logout">Log out</button>`
+    : `<a href="#login">Log in</a><a class="btn btn-post" href="#signup">Sign up</a>`;
+  const lo = document.getElementById('logout');
+  if (lo) lo.onclick = () => { state.sessionUser = null; save(); location.hash = ''; route(); };
+}
+
+function feed() {
+  const q = query.toLowerCase();
+  const posts = state.posts.filter((p) => !q || [p.title, p.location, p.body].some((s) => s.toLowerCase().includes(q))).sort((a, b) => b.createdAt - a.createdAt);
+  app.innerHTML = `
+    <p class="preview-note">Preview: accounts and posts you make here are saved on this device only.</p>
+    <form class="search" id="search"><input id="q" value="${esc(query)}" placeholder="Search by keyword or area…" aria-label="Search"><button>Search</button></form>
+    ${posts.length ? `<div class="feed">${posts.map((p) => `
+      <a class="row" href="#post-${esc(p.id)}">
+        <div class="thumbcol">
+          <div class="thumb">${p.photos.length > 1 ? `<span class="badge">📷 ${p.photos.length}</span>` : ''}<img src="${esc(p.photos[0])}" alt=""></div>
+          <div class="posted">Posted: ${timeLabel(p.createdAt)}</div>
+        </div>
+        <div class="info">
+          <div class="title">${esc(p.title)}</div>
+          <div class="loc">${esc(p.location)}</div>
+          <div class="snippet">${esc(p.body)}</div>
+        </div>
+      </a>`).join('')}</div>` : `<p class="empty">No posts${query ? ` matching “${esc(query)}”` : ''} yet.</p>`}`;
+  document.getElementById('search').onsubmit = (e) => { e.preventDefault(); query = document.getElementById('q').value.trim(); feed(); };
+}
+
+function detail(id) {
+  const p = state.posts.find((x) => x.id === id);
+  if (!p) { app.innerHTML = `<p class="empty">That post doesn't exist. <a href="#">Back to posts</a></p>`; return; }
+  const author = state.users.find((u) => u.id === p.userId);
+  const mine = me() && me().id === p.userId;
+  app.innerHTML = `<article class="detail">
+    <a href="#">← Back to posts</a>
+    <h1>${esc(p.title)}</h1>
+    <div class="meta">${esc(p.location)} · Posted ${timeLabel(p.createdAt)}${author ? ` by @${esc(author.username)}` : ''}</div>
+    <div class="gallery">${p.photos.map((s) => `<img src="${esc(s)}" alt="">`).join('')}</div>
+    <p class="body">${esc(p.body)}</p>
+    ${mine ? `<div class="confirm" id="del"><button class="btn btn-plain" id="delbtn">Delete post</button></div>` : ''}
+  </article>`;
+  const del = document.getElementById('delbtn');
+  if (del) del.onclick = () => {
+    document.getElementById('del').innerHTML = `<span>Delete this post?</span><button class="btn btn-post" id="yes">Delete</button><button class="btn btn-plain" id="no">Cancel</button>`;
+    document.getElementById('yes').onclick = () => { state.posts = state.posts.filter((x) => x.id !== id); save(); location.hash = ''; };
+    document.getElementById('no').onclick = () => detail(id);
+  };
+}
+
+function formPage(html, onSubmit) {
+  app.innerHTML = `<div class="formwrap"><form class="card" id="f" novalidate>${html}<div class="error" id="err" hidden></div></form></div>`;
+  const f = document.getElementById('f');
+  const err = document.getElementById('err');
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = await onSubmit(new FormData(f), f);
+    if (msg) { err.textContent = msg; err.hidden = false; err.scrollIntoView({ block: 'center' }); }
+  };
+  return f;
+}
+
+function signup() {
+  formPage(`
+    <h1>Create an account</h1>
+    <p class="sub">You need an account to make a post.</p>
+    <label>Username<input id="su-user" name="username" autocomplete="username" maxlength="20"></label>
+    <label>Password<input id="su-pw" type="password" name="password" autocomplete="new-password"></label>
+    <label>Confirm password<input id="su-pw2" type="password" name="confirm" autocomplete="new-password"></label>
+    <label class="check"><input id="su-adult" type="checkbox" name="adult"> I am 18 or older and agree to the posting rules.</label>
+    <button class="btn btn-post wide">Sign up</button>
+    <p class="alt">Already have an account? <a href="#login">Log in</a></p>`, async (fd) => {
+    const name = (fd.get('username') || '').trim(), pw = fd.get('password') || '';
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(name)) return 'Username must be 3–20 letters, numbers or underscores.';
+    if (pw.length < 8) return 'Password must be at least 8 characters.';
+    if (pw !== fd.get('confirm')) return 'Passwords do not match.';
+    if (!fd.get('adult')) return 'You must confirm you are 18 or older.';
+    if (state.users.some((u) => u.username.toLowerCase() === name.toLowerCase())) return 'That username is taken.';
+    const u = { id: 'u-' + crypto.randomUUID().slice(0, 8), username: name, pw: await hash(pw) };
+    state.users.push(u); state.sessionUser = u.id; save();
+    location.hash = 'new';
+  });
+}
+
+function login(next) {
+  formPage(`
+    <h1>Log in</h1>
+    ${next ? '<p class="sub">Log in or sign up to make a post.</p>' : ''}
+    <label>Username<input id="li-user" name="username" autocomplete="username"></label>
+    <label>Password<input id="li-pw" type="password" name="password" autocomplete="current-password"></label>
+    <button class="btn btn-post wide">Log in</button>
+    <p class="alt">New here? <a href="#signup">Create an account</a></p>
+    <p class="alt">Try the demo account: <b>demo</b> / <b>demo1234</b></p>`, async (fd) => {
+    const name = (fd.get('username') || '').trim(), pw = fd.get('password') || '';
+    const u = state.users.find((x) => x.username.toLowerCase() === name.toLowerCase());
+    const ok = u && (u.pw ? u.pw === await hash(pw) : u.demoPw === pw);
+    if (!ok) return 'Wrong username or password.';
+    state.sessionUser = u.id; save();
+    location.hash = next || '';
+  });
+}
+
+function shrink(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 900 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      resolve(c.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => reject(new Error('bad image'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function newPost() {
+  if (!me()) { login('new'); return; }
+  const f = formPage(`
+    <h1>Create a post</h1>
+    <label>Title<input id="np-title" name="title" maxlength="140"></label>
+    <label>Location<input id="np-loc" name="location" placeholder="Neighborhood or city"></label>
+    <label>Description<textarea id="np-body" name="body" rows="6"></textarea></label>
+    <label>Photos (1–5)<input id="np-photos" type="file" name="photos" accept="image/*" multiple></label>
+    <div class="previews" id="previews"></div>
+    <ul class="rules">
+      <li>18+ only. No minors in photos.</li>
+      <li>No offers of sex for money or any paid services.</li>
+      <li>Only post photos of yourself, with consent.</li>
+    </ul>
+    <button class="btn btn-post wide" id="pub">Publish post</button>`, async (fd) => {
+    const title = (fd.get('title') || '').trim(), location_ = (fd.get('location') || '').trim(), body = (fd.get('body') || '').trim();
+    const files = [...document.getElementById('np-photos').files];
+    if (!title) return 'Add a title.';
+    if (!location_) return 'Add a location.';
+    if (!body) return 'Add a description.';
+    if (!files.length) return 'Add at least one photo.';
+    if (files.length > 5) return 'You can add up to 5 photos.';
+    const btn = document.getElementById('pub'); btn.disabled = true; btn.textContent = 'Publishing…';
+    let photos;
+    try { photos = await Promise.all(files.map(shrink)); }
+    catch { btn.disabled = false; btn.textContent = 'Publish post'; return 'One of those files is not an image this browser can open. Try a JPG or PNG.'; }
+    const post = { id: crypto.randomUUID().slice(0, 8), userId: me().id, title, location: location_, body, photos, createdAt: Date.now() };
+    state.posts.push(post);
+    if (!save()) {
+      state.posts.pop(); btn.disabled = false; btn.textContent = 'Publish post';
+      return 'This preview ran out of storage space on your device. Try fewer photos, or delete an older post.';
+    }
+    location.hash = 'post-' + post.id;
+  });
+  document.getElementById('np-photos').onchange = (e) => {
+    document.getElementById('previews').innerHTML = [...e.target.files].slice(0, 5).map((fl) => `<img src="${URL.createObjectURL(fl)}" alt="">`).join('');
+  };
+}
+
+function route() {
+  renderNav();
+  const h = location.hash.slice(1);
+  if (h === 'signup') signup();
+  else if (h === 'login') login('');
+  else if (h === 'new') newPost();
+  else if (h.startsWith('post-')) detail(h.slice(5));
+  else feed();
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
+route();
+</script>
